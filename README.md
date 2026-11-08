@@ -1,6 +1,8 @@
 # Virus Simulator
 
 A simple interactive virus-spread simulator built with Streamlit. It shows how an outbreak changes over time and how it can spread between regions of the world.
+<img width="2112" height="1022" alt="Captura de pantalla 2026-11-08 212614" src="https://github.com/user-attachments/assets/5a371aed-2fef-4ed7-bc54-e8ef5b4f67e6" />
+
 
 ## How it relates to the SIR model
 
