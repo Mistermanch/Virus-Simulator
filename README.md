@@ -36,7 +36,7 @@ Replace the URL with your repository URL.
 ### 2. Open the project folder
 
 ```bash
-cd YOUR-REPOSITORY
+cd Virus-Simulator
 ```
 
 ### 3. Install the dependencies
