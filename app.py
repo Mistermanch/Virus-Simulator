@@ -1,8 +1,8 @@
 
 import streamlit as st
-import pandas as pd
-import plotly.express as px
+import streamlit.components.v1 as components
 import pycountry
+import json
 
 st.set_page_config(page_title="Virus Sim", page_icon="😷", layout="wide")
 
@@ -46,202 +46,392 @@ region_delays = {
     "North America": 20
 }
 
-def create_map():
-    df = pd.DataFrame({"Country_Code": all_countries})
-
-    df["Region"] = (
-        df["Country_Code"]
-        .map(country_to_region)
-        .fillna("Unassigned")
-    )
-
-    df["Severity"] = 0.0
-
-    fig = px.choropleth(
-        df,
-        locations="Country_Code",
-        locationmode="ISO-3",
-        color="Severity",
-        hover_name="Region",
-        color_continuous_scale=[
-            [0.0, "#ffffff"],
-            [0.2, "#ffcccc"],
-            [0.5, "#ff7777"],
-            [0.8, "#ff3333"],
-            [1.0, "#990000"]
-        ],
-        range_color=[0, 100],
-        template="plotly_dark"
-    )
-
-    fig.update_geos(
-        showframe=False,
-        showcoastlines=True,
-        coastlinecolor="#555555",
-        showocean=True,
-        oceancolor="#000000",
-        showland=True,
-        landcolor="#ffffff",
-        showlakes=False,
-        showrivers=False,
-        showcountries=True,
-        countrycolor="#555555",
-        bgcolor="#000000",
-        projection_type="natural earth"
-    )
-
-    fig.update_traces(
-        marker_line_width=0.4,
-        marker_line_color="#555555",
-        colorbar_title="Infection %"
-    )
-
-    fig.update_layout(
-        margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        paper_bgcolor="#000000",
-        plot_bgcolor="#000000",
-        coloraxis_colorbar=dict(
-            title="Severity %",
-            thickness=15,
-            len=0.7,
-            tickfont=dict(color="white"),
-            title_font=dict(color="white")
-        ),
-        font=dict(color="white"),
-        uirevision="world_map"
-    )
-
-    return fig
-
-
 if start_sim:
-    st.session_state.running = True
-    st.session_state.day = 0
-    st.session_state.total_population = 8000.0
-    st.session_state.susceptible = 7999.9
-    st.session_state.infected = 0.1
-    st.session_state.dead = 0.0
-    st.session_state.recovered = 0.0
-    st.session_state.history = []
-    st.session_state.map_fig = create_map()
 
+    config = {
+        "infectivity": infectivity,
+        "lethal_rate": lethal_rate,
+        "recovery_rate": recovery_rate,
+        "start_region": start_region,
+        "countries": all_countries,
+        "country_regions": country_to_region,
+        "region_delays": region_delays
+    }
 
-@st.fragment(run_every=0.25)
-def simulation():
+    config_json = json.dumps(config)
 
-    if not st.session_state.get("running", False):
-        return
-
-    if st.button("Stop simulation", key="stop_sim"):
-        st.session_state.running = False
-        return
-
-    st.session_state.day += 1
-    day = st.session_state.day
-
-    total_population = st.session_state.total_population
-    susceptible = st.session_state.susceptible
-    infected = st.session_state.infected
-    dead = st.session_state.dead
-    recovered = st.session_state.recovered
-
-    new_infections = (
-        susceptible * infected / total_population
-    ) * infectivity
-
-    new_deaths = infected * lethal_rate
-    new_recoveries = infected * recovery_rate
-
-    susceptible = max(0.0, susceptible - new_infections)
-    infected = max(0.0, infected + new_infections - new_deaths - new_recoveries)
-
-    dead += new_deaths
-    recovered += new_recoveries
-
-    st.session_state.susceptible = susceptible
-    st.session_state.infected = infected
-    st.session_state.dead = dead
-    st.session_state.recovered = recovered
-
-    st.session_state.history.append({
-        "Day": day,
-        "Healthy": susceptible,
-        "Infected": infected,
-        "Recovered": recovered,
-        "Dead": dead
-    })
-
-    region_severity = {}
-
-    for region in region_countries:
-
-        if region == start_region:
-            local_infected = infected * 0.7
-        else:
-            delay = region_delays[region]
-            progress = max(0, min(1, (day - delay) / 25))
-            local_infected = infected * 0.7 * progress
-
-        region_severity[region] = min(
-            100,
-            (local_infected / 1000) * 100
-        )
-
-    df_map = pd.DataFrame({"Country_Code": all_countries})
-
-    df_map["Region"] = (
-        df_map["Country_Code"]
-        .map(country_to_region)
-        .fillna("Unassigned")
-    )
-
-    severity_values = (
-        df_map["Region"]
-        .map(region_severity)
-        .fillna(0)
-        .tolist()
-    )
-
-    fig = st.session_state.map_fig
-    fig.data[0].z = severity_values
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Healthy Population", f"{susceptible:.1f} M")
-    col2.metric("Infected", f"{infected:.1f} M", delta=f"+{new_infections:.2f} M")
-    col3.metric("Immune", f"{recovered:.1f} M")
-    col4.metric("Dead", f"{dead:.1f} M")
-
-    col_chart, col_map = st.columns([1, 1])
-
-    with col_chart:
-        st.subheader(f"Statistics - Day {day}")
-        df_history = pd.DataFrame(st.session_state.history).set_index("Day")
-        st.line_chart(df_history, height=450)
-
-    with col_map:
-        st.subheader(f"World Infection Map - Day {day}")
-        st.plotly_chart(
-            fig,
-            use_container_width=True,
-            key="world_map",
-            config={
-                "displayModeBar": False,
-                "scrollZoom": False
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+        <style>
+            body {
+                margin: 0;
+                background: #080808;
+                color: white;
+                font-family: Arial, sans-serif;
             }
-        )
 
-    if infected < 0.01:
-        st.session_state.running = False
-        st.success(f"Simulation ended on Day {day}. The virus went extinct.")
+            .stats {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 12px;
+                margin-bottom: 20px;
+            }
 
-    elif day >= 90:
-        st.session_state.running = False
-        st.success("Simulation completed after 90 days.")
+            .card {
+                background: #171717;
+                border-radius: 10px;
+                padding: 16px;
+            }
 
+            .label {
+                color: #aaaaaa;
+                font-size: 13px;
+            }
 
-if st.session_state.get("running", False):
-    simulation()
+            .value {
+                font-size: 25px;
+                font-weight: bold;
+                margin-top: 8px;
+            }
 
-elif not start_sim:
-    st.info("Configure your virus on the left panel and start to watch a live simulation using mathematics to predict virus propagation.")
+            .content {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+
+            .panel {
+                background: #111111;
+                border-radius: 10px;
+                padding: 10px;
+                min-width: 0;
+            }
+
+            h3 {
+                font-size: 17px;
+                margin: 8px;
+            }
+
+            #map, #chart {
+                width: 100%;
+                height: 460px;
+            }
+
+            button {
+                background: #dc2626;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 20px;
+                color: white;
+                font-weight: bold;
+                cursor: pointer;
+                margin-bottom: 15px;
+            }
+
+            @media(max-width: 700px) {
+                .content {
+                    grid-template-columns: 1fr;
+                }
+
+                .stats {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <button id="stop">Stop simulation</button>
+
+        <div class="stats">
+            <div class="card">
+                <div class="label">Healthy Population</div>
+                <div class="value" id="healthy">7999.9 M</div>
+            </div>
+
+            <div class="card">
+                <div class="label">Infected</div>
+                <div class="value" id="infected">0.1 M</div>
+            </div>
+
+            <div class="card">
+                <div class="label">Immune</div>
+                <div class="value" id="recovered">0.0 M</div>
+            </div>
+
+            <div class="card">
+                <div class="label">Dead</div>
+                <div class="value" id="dead">0.0 M</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="panel">
+                <h3 id="chart-title">Statistics - Day 0</h3>
+                <div id="chart"></div>
+            </div>
+
+            <div class="panel">
+                <h3 id="map-title">World Infection Map - Day 0</h3>
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <div id="status"></div>
+
+        <script>
+            const config = CONFIG_DATA;
+
+            let susceptible = 7999.9;
+            let infected = 0.1;
+            let recovered = 0;
+            let dead = 0;
+            let day = 0;
+            let running = true;
+
+            const totalPopulation = 8000;
+            const mapElement = document.getElementById("map");
+            const chartElement = document.getElementById("chart");
+
+            const regions = [
+                "South America",
+                "Europe",
+                "Asia",
+                "Africa",
+                "North America"
+            ];
+
+            function getSeverity(country, currentDay, currentInfected) {
+                const region = config.country_regions[country];
+
+                if (!region) return 0;
+
+                let localInfected;
+
+                if (region === config.start_region) {
+                    localInfected = currentInfected * 0.7;
+                } else {
+                    const delay = config.region_delays[region];
+                    const progress = Math.max(
+                        0,
+                        Math.min(1, (currentDay - delay) / 25)
+                    );
+
+                    localInfected = currentInfected * 0.7 * progress;
+                }
+
+                return Math.min(100, localInfected / 10);
+            }
+
+            const initialData = {
+                type: "choropleth",
+                locationmode: "ISO-3",
+                locations: config.countries,
+                z: config.countries.map(() => 0),
+                zmin: 0,
+                zmax: 100,
+                colorscale: [
+                    [0, "#ffffff"],
+                    [0.2, "#ffcccc"],
+                    [0.5, "#ff7777"],
+                    [0.8, "#ff3333"],
+                    [1, "#990000"]
+                ],
+                marker: {
+                    line: {
+                        color: "#555555",
+                        width: 0.4
+                    }
+                },
+                colorbar: {
+                    title: "Infection %",
+                    thickness: 15,
+                    tickfont: {color: "white"},
+                    titlefont: {color: "white"}
+                },
+                customdata: config.countries.map(
+                    c => config.country_regions[c] || "Unassigned"
+                ),
+                hovertemplate:
+                    "%{location}<br>%{customdata}<br>" +
+                    "Infection: %{z:.1f}%<extra></extra>"
+            };
+
+            const darkLayout = {
+                paper_bgcolor: "#111111",
+                plot_bgcolor: "#111111",
+                font: {color: "white"},
+                margin: {l: 5, r: 5, t: 5, b: 5},
+                geo: {
+                    showframe: false,
+                    showcoastlines: true,
+                    coastlinecolor: "#555555",
+                    showocean: true,
+                    oceancolor: "#000000",
+                    showland: true,
+                    landcolor: "#ffffff",
+                    showcountries: true,
+                    countrycolor: "#555555",
+                    showlakes: false,
+                    bgcolor: "#000000",
+                    projection: {type: "natural earth"}
+                }
+            };
+
+            const chartData = [
+                {name: "Healthy", x: [], y: [], mode: "lines", line: {color: "#ffffff"}},
+                {name: "Infected", x: [], y: [], mode: "lines", line: {color: "#ff3333"}},
+                {name: "Recovered", x: [], y: [], mode: "lines", line: {color: "#33cc77"}},
+                {name: "Dead", x: [], y: [], mode: "lines", line: {color: "#888888"}}
+            ];
+
+            const chartLayout = {
+                paper_bgcolor: "#111111",
+                plot_bgcolor: "#111111",
+                font: {color: "white"},
+                margin: {l: 45, r: 15, t: 15, b: 40},
+                xaxis: {
+                    title: "Day",
+                    gridcolor: "#333333"
+                },
+                yaxis: {
+                    title: "Population (M)",
+                    gridcolor: "#333333"
+                },
+                legend: {orientation: "h", y: -0.2}
+            };
+
+            async function initialize() {
+                await Plotly.newPlot(
+                    mapElement,
+                    [initialData],
+                    darkLayout,
+                    {responsive: true, displayModeBar: false}
+                );
+
+                await Plotly.newPlot(
+                    chartElement,
+                    chartData,
+                    chartLayout,
+                    {responsive: true, displayModeBar: false}
+                );
+
+                runSimulation();
+            }
+
+            function updateStatistics() {
+                document.getElementById("healthy").textContent =
+                    susceptible.toFixed(1) + " M";
+
+                document.getElementById("infected").textContent =
+                    infected.toFixed(1) + " M";
+
+                document.getElementById("recovered").textContent =
+                    recovered.toFixed(1) + " M";
+
+                document.getElementById("dead").textContent =
+                    dead.toFixed(1) + " M";
+
+                document.getElementById("chart-title").textContent =
+                    "Statistics - Day " + day;
+
+                document.getElementById("map-title").textContent =
+                    "World Infection Map - Day " + day;
+            }
+
+            function updateMap() {
+                const severity = config.countries.map(
+                    country => getSeverity(country, day, infected)
+                );
+
+                Plotly.restyle(
+                    mapElement,
+                    {z: [severity]}
+                );
+            }
+
+            function updateChart() {
+                Plotly.extendTraces(
+                    chartElement,
+                    {
+                        x: [[day], [day], [day], [day]],
+                        y: [[susceptible], [infected], [recovered], [dead]]
+                    },
+                    [0, 1, 2, 3],
+                    90
+                );
+            }
+
+            function runSimulation() {
+                const interval = setInterval(() => {
+
+                    if (!running) {
+                        clearInterval(interval);
+                        return;
+                    }
+
+                    day++;
+
+                    const newInfections =
+                        (susceptible * infected / totalPopulation)
+                        * config.infectivity;
+
+                    const newDeaths = infected * config.lethal_rate;
+                    const newRecoveries = infected * config.recovery_rate;
+
+                    susceptible = Math.max(
+                        0,
+                        susceptible - newInfections
+                    );
+
+                    infected = Math.max(
+                        0,
+                        infected + newInfections - newDeaths - newRecoveries
+                    );
+
+                    dead += newDeaths;
+                    recovered += newRecoveries;
+
+                    updateStatistics();
+                    updateMap();
+                    updateChart();
+
+                    if (infected < 0.01) {
+                        running = false;
+                        document.getElementById("status").textContent =
+                            "Simulation ended on Day " + day +
+                            ". The virus went extinct.";
+                    }
+
+                    if (day >= 90) {
+                        running = false;
+                        document.getElementById("status").textContent =
+                            "Simulation completed after 90 days.";
+                    }
+
+                }, 80);
+            }
+
+            document.getElementById("stop").onclick = () => {
+                running = false;
+                document.getElementById("status").textContent =
+                    "Simulation stopped.";
+            };
+
+            initialize();
+        </script>
+
+    </body>
+    </html>
+    """
+
+    html = html.replace("CONFIG_DATA", config_json)
+
+    components.html(html, height=850, scrolling=True)
+
+else:
+    st.info("Configure your virus on the left panel and release it to start the simulation.")
