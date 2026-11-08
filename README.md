@@ -15,8 +15,8 @@ This project also includes a fourth group, **Dead**, to represent the virus mort
 The main controls represent simplified model parameters:
 
 - **Infectivity:** controls how quickly the virus infects susceptible people.
-- **Resistance (Recovery Rate):** controls how quickly infected people recover.
-- **Lethality (Mortality Rate):** controls how many infected people die.
+- **Resistance:** controls how quickly infected people recover.
+- **Lethality:** controls how many infected people die.
 - **Starting Region:** selects where the outbreak begins. Other regions are affected after a delay.
 
 The results are displayed as population statistics, a line chart, and a world infection map. The simulation runs for a maximum of 90 days and can be stopped at any time.
