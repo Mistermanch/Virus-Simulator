@@ -21,11 +21,40 @@ The main controls represent simplified model parameters:
 
 The results are displayed as population statistics, a line chart, and a world infection map. The simulation runs for a maximum of 90 days and can be stopped at any time.
 
-## Run the app locally
+## Installation and local setup
+
+### 1. Clone the repository
+
+Open your terminal and run:
+
+```bash
+git clone https://github.com/Mistermanch/Virus-Simulator
+```
+
+Replace the URL with your repository URL.
+
+### 2. Open the project folder
+
+```bash
+cd YOUR-REPOSITORY
+```
+
+### 3. Install the dependencies
+
+Make sure Python is installed, then run:
 
 ```bash
 pip install -r requirements.txt
+```
+
+### 4. Run the application
+
+```bash
 streamlit run app.py
 ```
+
+The application will open automatically in your browser. If it doesn't, visit:
+
+http://localhost:8501
 
 You can also try the live app: [Virus Simulator](https://virus-simulator-3rxatagbt5ztrkrqmaaf5v.streamlit.app)
