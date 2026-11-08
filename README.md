@@ -12,14 +12,14 @@ The simulator is inspired by the **SIR model**, which divides a population into 
 - **Infected (I):** people who currently have the virus.
 - **Recovered (R):** people who recovered and are considered immune.
 
-This project also includes a fourth group, **Dead**, to represent the virus mortality rate. Each day, people move from Susceptible to Infected, and from Infected to Recovered or Dead.
+This project also includes a fourth group, **Dead**, to represent the virus mortality rate.
 
-The main controls represent simplified model parameters:
+The main controls represent these parameters:
 
-- **Infectivity:** controls how quickly the virus infects susceptible people.
+- **Infectivity:** controls how quickly the virus infects people.
 - **Resistance:** controls how quickly infected people recover.
 - **Lethality:** controls how many infected people die.
-- **Starting Region:** selects where the outbreak begins. Other regions are affected after a delay.
+- **Starting Region:** selects where the outbreak begins.
 
 The results are displayed as population statistics, a line chart, and a world infection map. The simulation runs for a maximum of 90 days and can be stopped at any time.
 
